@@ -28,6 +28,33 @@ public class Counter {
     private Set<Method> tests;
     private Set<Method> dataProviders;
 
+    private final static String ROOT_PACKAGE = "counttests"; // example: org.site
+    private final static String PACKAGE_NAME = ""; // example: testpackage.newpack
+    private final static String PATH_TO_SUITE_XML_FILE = "src/test/resources/tempto-tests.xml";
+
+    public static void main(String[] args) throws InstantiationException {
+        Counter counter = new Counter();
+
+        // Find count of tests in XML file
+        counter.countTestsInXmlFile(ROOT_PACKAGE, PATH_TO_SUITE_XML_FILE);
+        int numberOfAnnotatedTests = counter.getAmountOfAnnotatedTests(true);
+        int numberOfAllTests = counter.getAmountOfAllTestsIncludeDataProviders(true);
+        System.out.println("------------------------------------------------------------------------------");
+        System.out.println("Test cases which are annotated by @Test in XML file = " + numberOfAnnotatedTests);
+        System.out.println("Amount of tests in XML file = " + numberOfAllTests + " in package " + ROOT_PACKAGE + "." + PACKAGE_NAME);
+        System.out.println("------------------------------------------------------------------------------");
+        System.out.println();
+
+        // Find count of tests in package name, PACKAGE_NAME can be empty
+        counter.countTestsInPackage(ROOT_PACKAGE, PACKAGE_NAME);
+        numberOfAnnotatedTests = counter.getAmountOfAnnotatedTests(true);
+        numberOfAllTests = counter.getAmountOfAllTestsIncludeDataProviders(true);
+        System.out.println("------------------------------------------------------------------------------");
+        System.out.println("Test cases which are annotated by @Test in package = " + numberOfAnnotatedTests);
+        System.out.println("Amount of tests  = " + numberOfAllTests + " in package " + ROOT_PACKAGE + "." + PACKAGE_NAME);
+        System.out.println("------------------------------------------------------------------------------");
+    }
+
     public void countTestsInXmlFile(String rootPackage, String fullPathToSuiteName){
         tests = new HashSet<>();
         List<Class> classes = getClassesFromXmlFile(fullPathToSuiteName);
@@ -64,35 +91,6 @@ public class Counter {
         } catch (ClassNotFoundException | IOException | URISyntaxException e) {
             e.printStackTrace();
         }
-    }
-
-    public static void main(String[] args) throws InstantiationException {
-        String rootPackage = "counttests"; // example: org.site
-        String packageName = ""; // example: testpackage.newpack
-        String pathToSuiteXml = "src/test/resources/tempto-tests.xml";
-        // full path will be org.site.testpackage.newpack as result
-
-        if(args.length == 2){
-            rootPackage = args[0];
-            packageName = args[1];
-        }
-        Counter counter = new Counter();
-        counter.countTestsInXmlFile(rootPackage, pathToSuiteXml);
-
-        int numberOfAnnotatedTests = counter.getAmountOfAnnotatedTests(true);
-        int numberOfAllTests = counter.getAmountOfAllTestsIncludeDataProviders(true);
-
-        System.out.println("Test cases which are annotated by @Test in XML file = " + numberOfAnnotatedTests);
-        System.out.println("Amount of tests in XML file = " + numberOfAllTests + " in package " + rootPackage + "." + packageName);
-
-        counter.countTestsInPackage(rootPackage, packageName);
-
-        numberOfAnnotatedTests = counter.getAmountOfAnnotatedTests(true);
-        numberOfAllTests = counter.getAmountOfAllTestsIncludeDataProviders(true);
-
-        System.out.println("Test cases which are annotated by @Test in package = " + numberOfAnnotatedTests);
-        System.out.println("Amount of tests  = " + numberOfAllTests + " in package " + rootPackage + "." + packageName);
-
     }
 
     public int getAmountOfAnnotatedTests(boolean onlyEnabledTests) {
