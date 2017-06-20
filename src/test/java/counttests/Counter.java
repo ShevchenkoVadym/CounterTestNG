@@ -1,8 +1,15 @@
 package counttests;
 
+import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import org.testng.xml.Parser;
+import org.testng.xml.XmlClass;
+import org.testng.xml.XmlSuite;
+import org.testng.xml.XmlTest;
+import org.xml.sax.SAXException;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -21,13 +28,29 @@ public class Counter {
     private Set<Method> tests;
     private Set<Method> dataProviders;
 
-    Counter(String rootPackage, String packageName){
+    public void countTestsInXmlFile(String rootPackage, String fullPathToSuiteName){
+        tests = new HashSet<>();
+        List<Class> classes = getClassesFromXmlFile(fullPathToSuiteName);
+        // find all methods in specific classes which annotated by Test
+        for(Class aClass : classes){
+            for (Method method : aClass.getMethods()) {
+                if (method.isAnnotationPresent(Test.class)) {
+                    tests.add(method);
+                }
+            }
+        }
+        // find all dataProviders
+        dataProviders = getAllDataProviders(rootPackage);
+    }
+
+    public void countTestsInPackage(String rootPackage, String packageName){
+        tests.clear();
         String fullPathToTests = rootPackage;
         if(!packageName.isEmpty())
             fullPathToTests = rootPackage + "." + packageName;
-        dataProviders = new HashSet<>();
-        tests = new HashSet<>();
+
         try {
+            // find all methods in specific classes which annotated by Test
             Iterable<Class> allClassesInSpecificPackage = getClasses(fullPathToTests);
             for (Class clazz : allClassesInSpecificPackage) {
                 for (Method method : clazz.getMethods()) {
@@ -36,14 +59,8 @@ public class Counter {
                     }
                 }
             }
-            Iterable<Class> allClassesInRootPackage = getClasses(rootPackage);
-            for (Class clazz : allClassesInRootPackage) {
-                for (Method method : clazz.getMethods()) {
-                    if (method.isAnnotationPresent(DataProvider.class)) {
-                        dataProviders.add(method);
-                    }
-                }
-            }
+            // find all dataProviders
+            dataProviders = getAllDataProviders(rootPackage);
         } catch (ClassNotFoundException | IOException | URISyntaxException e) {
             e.printStackTrace();
         }
@@ -52,18 +69,30 @@ public class Counter {
     public static void main(String[] args) throws InstantiationException {
         String rootPackage = "counttests"; // example: org.site
         String packageName = ""; // example: testpackage.newpack
+        String pathToSuiteXml = "src/test/resources/tempto-tests.xml";
         // full path will be org.site.testpackage.newpack as result
 
         if(args.length == 2){
             rootPackage = args[0];
             packageName = args[1];
         }
-        Counter counter = new Counter(rootPackage, packageName);
+        Counter counter = new Counter();
+        counter.countTestsInXmlFile(rootPackage, pathToSuiteXml);
+
         int numberOfAnnotatedTests = counter.getAmountOfAnnotatedTests(true);
         int numberOfAllTests = counter.getAmountOfAllTestsIncludeDataProviders(true);
 
-        System.out.println("Test cases which are annotated by @Test = " + numberOfAnnotatedTests);
-        System.out.println("Amount of tests = " + numberOfAllTests + " in package " + rootPackage + "." + packageName);
+        System.out.println("Test cases which are annotated by @Test in XML file = " + numberOfAnnotatedTests);
+        System.out.println("Amount of tests in XML file = " + numberOfAllTests + " in package " + rootPackage + "." + packageName);
+
+        counter.countTestsInPackage(rootPackage, packageName);
+
+        numberOfAnnotatedTests = counter.getAmountOfAnnotatedTests(true);
+        numberOfAllTests = counter.getAmountOfAllTestsIncludeDataProviders(true);
+
+        System.out.println("Test cases which are annotated by @Test in package = " + numberOfAnnotatedTests);
+        System.out.println("Amount of tests  = " + numberOfAllTests + " in package " + rootPackage + "." + packageName);
+
     }
 
     public int getAmountOfAnnotatedTests(boolean onlyEnabledTests) {
@@ -184,7 +213,7 @@ public class Counter {
      */
     private List<Class> findClasses(File directory, String packageName) throws ClassNotFoundException
     {
-        List<Class> classes = new ArrayList<Class>();
+        List<Class> classes = new ArrayList<>();
         if (!directory.exists())
         {
             return classes;
@@ -202,6 +231,44 @@ public class Counter {
             }
         }
         return classes;
+    }
+
+    private List<Class> getClassesFromXmlFile(String fullPathToSuiteName){
+        final Parser parser = new Parser(fullPathToSuiteName);
+        final List<XmlSuite> suites;
+        final List<Class> classes = new ArrayList<>();
+        try {
+            suites = parser.parseToList();
+            for(XmlSuite xmlSuite : suites){
+                List<XmlTest> testsInSuite = xmlSuite.getTests();
+                for(XmlTest testInSuite : testsInSuite){
+                    List<XmlClass> classesInTest = testInSuite.getClasses();
+                    for(XmlClass classInTestSuite : classesInTest){
+                        classes.add(Class.forName(classInTestSuite.getName()));
+                    }
+                }
+            }
+        } catch (ParserConfigurationException | SAXException | IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return classes;
+    }
+
+    private Set<Method> getAllDataProviders(String rootPackage){
+        Set<Method> dataProvider = new HashSet<>();
+        try {
+            Iterable<Class> allClassesInRootPackage = getClasses(rootPackage);
+            for (Class clazz : allClassesInRootPackage) {
+                for (Method method : clazz.getMethods()) {
+                    if (method.isAnnotationPresent(DataProvider.class)) {
+                        dataProvider.add(method);
+                    }
+                }
+            }
+        } catch (ClassNotFoundException | IOException | URISyntaxException e) {
+            e.printStackTrace();
+        }
+        return dataProvider;
     }
 
 
